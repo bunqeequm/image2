@@ -1,14 +1,9 @@
 {
-  "builds": [
-    {
-      "src": "app.py",
-      "use": "@vercel/python"
-    }
-  ],
   "routes": [
     {
-      "src": "/(.*)",
-      "dest": "app.py"
+      "src": "/api/image2",
+      "dest": "/api/image2.py",
+      "methods": ["GET", "POST"]
     }
   ]
 }
