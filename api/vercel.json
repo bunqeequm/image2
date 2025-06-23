@@ -1,6 +1,6 @@
 {
   "builds": [{"src": "api/*.js", "use": "@vercel/node"}],
   "routes": [
-    {"src": "/api/image", "dest": "/api/token.js"}
+    {"src": "/api/image", "dest": "/api/iamge.js"}
   ]
 }
